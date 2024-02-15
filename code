@@ -62,3 +62,4 @@ export class AddApplicationComponent implements OnInit {
     fileReader.readAsArrayBuffer(file);
   }
 }
+// install npm install --save-dev @angular-devkit/core

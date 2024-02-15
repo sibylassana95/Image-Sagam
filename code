@@ -1,0 +1,64 @@
+import { Component, OnInit } from '@angular/core';
+import { Router } from '@angular/router';
+import { ApplicationServiceService } from '../service/application-service.service';
+import { Application } from '../model/application.model';
+import { FileSystemUtility } from '@angular-devkit/core';
+
+@Component({
+  selector: 'app-add-application',
+  templateUrl: './add-application.component.html',
+  styleUrls: ['./add-application.component.css']
+})
+export class AddApplicationComponent implements OnInit {
+  newApplication = new Application();
+  imageFile: File | null = null;
+
+  constructor(
+    private applicationsService: ApplicationServiceService,
+    private router: Router
+  ) {}
+
+  ngOnInit(): void {}
+
+  onFileChange(event: any) {
+    if (event.target.files && event.target.files.length > 0) {
+      this.imageFile = event.target.files[0];
+    }
+  }
+
+  addApplication() {
+    // Vérifiez si un fichier d'image a été sélectionné
+    if (this.imageFile) {
+      // Envoyez uniquement le nom de l'image au service
+      this.newApplication.logo = this.imageFile.name;
+      this.applicationsService.ajouterApplication(this.newApplication).subscribe(app => {
+        console.log(app);
+        // Copiez le fichier vers le dossier assets/images
+        this.copyFileToAssetsFolder(this.imageFile);
+        this.router.navigate(['applications']);
+      });
+    }
+  }
+
+  copyFileToAssetsFolder(file: File) {
+    const filePath = 'src/assets/images/' + file.name; // Chemin de destination
+    const fileContent = new Uint8Array(file.size);
+    const fileReader = new FileReader();
+
+    fileReader.onload = () => {
+      const arrayBuffer = fileReader.result as ArrayBuffer;
+      const dataArray = new Uint8Array(arrayBuffer);
+      for (let i = 0; i < dataArray.length; i++) {
+        fileContent[i] = dataArray[i];
+      }
+
+      FileSystemUtility.writeFile(filePath, fileContent).toPromise().then(() => {
+        console.log('Fichier copié avec succès vers le dossier assets/images');
+      }).catch((error) => {
+        console.error('Une erreur est survenue lors de la copie du fichier :', error);
+      });
+    };
+
+    fileReader.readAsArrayBuffer(file);
+  }
+}

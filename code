@@ -2,7 +2,6 @@ import { Component, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
 import { ApplicationServiceService } from '../service/application-service.service';
 import { Application } from '../model/application.model';
-import { FileSystemUtility } from '@angular-devkit/core';
 
 @Component({
   selector: 'app-add-application',
@@ -11,7 +10,7 @@ import { FileSystemUtility } from '@angular-devkit/core';
 })
 export class AddApplicationComponent implements OnInit {
   newApplication = new Application();
-  imageFile: File | null = null;
+  logoFile: File | null = null;
 
   constructor(
     private applicationsService: ApplicationServiceService,
@@ -20,46 +19,41 @@ export class AddApplicationComponent implements OnInit {
 
   ngOnInit(): void {}
 
-  onFileChange(event: any) {
+  onLogoFileChange(event: any) {
     if (event.target.files && event.target.files.length > 0) {
-      this.imageFile = event.target.files[0];
+      this.logoFile = event.target.files[0];
     }
   }
 
   addApplication() {
-    // Vérifiez si un fichier d'image a été sélectionné
-    if (this.imageFile) {
-      // Envoyez uniquement le nom de l'image au service
-      this.newApplication.logo = this.imageFile.name;
-      this.applicationsService.ajouterApplication(this.newApplication).subscribe(app => {
-        console.log(app);
-        // Copiez le fichier vers le dossier assets/images
-        this.copyFileToAssetsFolder(this.imageFile);
-        this.router.navigate(['applications']);
-      });
+    if (!this.logoFile) {
+      console.error("No logo file selected.");
+      return;
     }
-  }
 
-  copyFileToAssetsFolder(file: File) {
-    const filePath = 'src/assets/images/' + file.name; // Chemin de destination
-    const fileContent = new Uint8Array(file.size);
-    const fileReader = new FileReader();
+    // Extract file name
+    const logoFileName = this.logoFile.name;
 
-    fileReader.onload = () => {
-      const arrayBuffer = fileReader.result as ArrayBuffer;
-      const dataArray = new Uint8Array(arrayBuffer);
-      for (let i = 0; i < dataArray.length; i++) {
-        fileContent[i] = dataArray[i];
-      }
+    // Assign the file name to your newApplication object
+    this.newApplication.logo = logoFileName;
 
-      FileSystemUtility.writeFile(filePath, fileContent).toPromise().then(() => {
-        console.log('Fichier copié avec succès vers le dossier assets/images');
-      }).catch((error) => {
-        console.error('Une erreur est survenue lors de la copie du fichier :', error);
+    // Send the newApplication object to your backend
+    this.applicationsService.ajouterApplication(this.newApplication)
+      .subscribe(app => {
+        console.log(app);
+        
+        // Now upload the file to your server
+        const formData = new FormData();
+        formData.append('logo', this.logoFile);
+        this.applicationsService.uploadLogo(formData)
+          .subscribe(response => {
+            console.log("Logo uploaded successfully.");
+            this.router.navigate(['applications']);
+          }, error => {
+            console.error("Error uploading logo:", error);
+          });
+      }, error => {
+        console.error("Error adding application:", error);
       });
-    };
-
-    fileReader.readAsArrayBuffer(file);
   }
 }
-// install npm install --save-dev @angular-devkit/core
